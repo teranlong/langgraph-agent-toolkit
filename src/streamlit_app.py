@@ -12,6 +12,14 @@ from client import AgentClient, AgentClientError
 from schema import ChatHistory, ChatMessage
 from schema.task_data import TaskData, TaskDataStatus
 
+
+async def safe_anext(agen: AsyncGenerator, default=None):
+    """Like anext but returns default instead of raising StopAsyncIteration."""
+    try:
+        return await anext(agen)
+    except StopAsyncIteration:
+        return default
+
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
 # The app has three main functions which are all run async:
 
@@ -349,7 +357,14 @@ async def draw_messages(
                             status = call_results[tool_call["id"]]
                             status.write("Input:")
                             status.write(tool_call["args"])
-                            tool_result: ChatMessage = await anext(messages_agen)
+                            tool_result: ChatMessage | None = await safe_anext(messages_agen)
+
+                            if tool_result is None:
+                                status.write("Stream ended before tool result arrived.")
+                                status.update(state="error")
+                                st.error("Agent stream ended early; tool result missing.")
+                                st.stop()
+                                return
 
                             if tool_result.type != "tool":
                                 st.error(f"Unexpected ChatMessage type: {tool_result.type}")
@@ -444,14 +459,24 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
     nested_popovers = {}
 
     # looking for the transfer Success tool call message
-    first_msg = await anext(messages_agen)
+    first_msg = await safe_anext(messages_agen)
+    if first_msg is None:
+        status.write("Stream ended before sub-agent responded.")
+        status.update(state="error")
+        return
     if is_new:
         st.session_state.messages.append(first_msg)
 
     # Continue reading until we get an explicit handoff back
     while True:
         # Read next message
-        sub_msg = await anext(messages_agen)
+        sub_msg = await safe_anext(messages_agen)
+
+        if sub_msg is None:
+            if status:
+                status.write("Stream ended before sub-agent completed.")
+                status.update(state="error")
+            break
 
         # this should only happen is skip_stream flag is removed
         # if isinstance(sub_msg, str):
@@ -477,7 +502,12 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
             for tc in sub_msg.tool_calls:
                 if "transfer_back_to" in tc.get("name", ""):
                     # Read the corresponding tool result
-                    transfer_result = await anext(messages_agen)
+                    transfer_result = await safe_anext(messages_agen)
+                    if transfer_result is None:
+                        if status:
+                            status.write("Stream ended before transfer_back tool result.")
+                            status.update(state="error")
+                        break
                     if is_new:
                         st.session_state.messages.append(transfer_result)
 
