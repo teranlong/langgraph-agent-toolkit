@@ -47,7 +47,7 @@ def format_contexts(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
 
-def load_chroma_db():
+def load_chroma_db(db_path: str):
     # Create the embedding function for our project description database
     try:
         embeddings = OpenAIEmbeddings()
@@ -57,7 +57,7 @@ def load_chroma_db():
         ) from e
 
     # Load the stored vector database
-    chroma_db = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
+    chroma_db = Chroma(persist_directory=db_path, embedding_function=embeddings)
     retriever = chroma_db.as_retriever(search_kwargs={"k": 5})
     return retriever
 
@@ -65,7 +65,7 @@ def load_chroma_db():
 def database_search_func(query: str) -> str:
     """Searches chroma_db for information in the company's handbook."""
     # Get the chroma retriever
-    retriever = load_chroma_db()
+    retriever = load_chroma_db("./chroma_db")
 
     # Search the database for relevant documents
     documents = retriever.invoke(query)
@@ -76,5 +76,22 @@ def database_search_func(query: str) -> str:
     return context_str
 
 
+def cards_search_func(query: str) -> str:
+    """Searches chroma_db for information in the cards database."""
+    # Get the chroma retriever
+    retriever = load_chroma_db("./chroma_db_cards")
+
+    # Search the database for relevant documents
+    documents = retriever.invoke(query)
+
+    # Format the documents into a string
+    context_str = format_contexts(documents)
+
+    return context_str
+
 database_search: BaseTool = tool(database_search_func)
 database_search.name = "Database_Search"  # Update name with the purpose of your database
+
+
+cards_search: BaseTool = tool(cards_search_func)
+cards_search.name = "Cards_Search"  # Update name with the purpose of your database

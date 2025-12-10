@@ -1,11 +1,14 @@
+import csv
 import os
 import shutil
 
 from dotenv import load_dotenv
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -64,18 +67,64 @@ def create_chroma_db(
     return chroma
 
 
+def create_chroma_db_from_cards(
+    tsv_path: str,
+    db_name: str = "./chroma_db_cards",
+    delete_chroma_db: bool = True,
+):
+    embeddings = OpenAIEmbeddings(api_key=os.environ["OPENAI_API_KEY"])
+
+    if delete_chroma_db and os.path.exists(db_name):
+        shutil.rmtree(db_name)
+
+    chroma = Chroma(embedding_function=embeddings, persist_directory=db_name)
+
+    docs = []
+    with open(tsv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            content = (
+                f"{row['name']} ({row['type']}, {row['rarity']}) — "
+                f"{row['album']} / {row['collection']} #{row['number']}\n"
+                f"Release: {row['release_date']} | Energy {row['energy']} | "
+                f"Power {row['power']} | PPE {row['ppe']}\n"
+                f"Ability: {row['ability_name']} — {row['ability_description']}\n"
+                f"Tags: {row['tags']}"
+            )
+            docs.append(
+                Document(
+                    page_content=content,
+                    metadata={
+                        "source": row["url"],
+                        "name": row["name"],
+                        "album": row["album"],
+                        "collection": row["collection"],
+                        "number": row["number"],
+                        "type": row["type"],
+                        "rarity": row["rarity"],
+                        "release_date": row["release_date"],
+                        "tags": row["tags"],
+                    },
+                )
+            )
+
+    chroma.add_documents(docs)
+    print(f"Loaded {len(docs)} cards into {db_name}")
+    return chroma
+
+
 if __name__ == "__main__":
     # Path to the folder containing the documents
-    folder_path = "./data"
+    tsv_path = "./data/cards.tsv"
 
     # Create the Chroma database
-    chroma = create_chroma_db(folder_path=folder_path)
+    chroma = create_chroma_db_from_cards(tsv_path=tsv_path, db_name="./chroma_db_cards_run")
 
     # Create retriever from the Chroma database
     retriever = chroma.as_retriever(search_kwargs={"k": 3})
 
     # Perform a similarity search
-    query = "What's my company's mission and values"
+    query = "Tell me about the bobbit worm card."
     similar_docs = retriever.invoke(query)
 
     # Display results

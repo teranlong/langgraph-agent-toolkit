@@ -13,6 +13,7 @@ from agents.langgraph_supervisor_agent import langgraph_supervisor_agent
 from agents.langgraph_supervisor_hierarchy_agent import langgraph_supervisor_hierarchy_agent
 from agents.lazy_agent import LazyLoadingAgent
 from agents.rag_assistant import rag_assistant
+from agents.rag_assistant_cards import rag_assistant_cards
 from agents.research_assistant import research_assistant
 from schema import AgentInfo
 
@@ -32,7 +33,7 @@ class Agent:
 
 
 agents: dict[str, Agent] = {
-    "chatbot": Agent(description="A simple chatbot.", graph_like=chatbot),
+    "chatbot1": Agent(description="A simple chatbot.", graph_like=chatbot),
     "research-assistant": Agent(
         description="A research assistant with web search and calculator.",
         graph_like=research_assistant,
@@ -40,6 +41,10 @@ agents: dict[str, Agent] = {
     "rag-assistant": Agent(
         description="A RAG assistant with access to information in a database.",
         graph_like=rag_assistant,
+    ),
+    "rag-assistant-cards": Agent(
+        description="A RAG assistant with access to information in cards.",
+        graph_like=rag_assistant_cards,
     ),
     "command-agent": Agent(description="A command agent.", graph_like=command_agent),
     "bg-task-agent": Agent(description="A background task agent.", graph_like=bg_task_agent),

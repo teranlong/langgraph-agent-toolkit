@@ -20,6 +20,7 @@ async def safe_anext(agen: AsyncGenerator, default=None):
     except StopAsyncIteration:
         return default
 
+
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
 # The app has three main functions which are all run async:
 
@@ -201,6 +202,9 @@ async def main() -> None:
             case "rag-assistant":
                 WELCOME = """Hello! I'm an AI-powered Company Policy & HR assistant with access to AcmeTech's Employee Handbook.
                 I can help you find information about benefits, remote work, time-off policies, company values, and more. Ask me anything!"""
+            case "rag-assistant-cards":
+                WELCOME = """Hello! I'm an AI-powered cards assistant with access to cards.
+                I can help you find information about cards. Ask me anything!"""
             case _:
                 WELCOME = "Hello! I'm an AI agent. Ask me anything!"
 
