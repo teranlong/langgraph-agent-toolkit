@@ -136,6 +136,16 @@ class ChatMessage(BaseModel):
         print(self.pretty_repr())  # noqa: T201
 
 
+class RetrievalRequest(BaseModel):
+    query: str = Field(description="User query for vector search.")
+    k: int = Field(default=3, ge=1, le=50, description="Number of top documents to return.")
+
+
+class RetrievalDocument(BaseModel):
+    content: str
+    metadata: dict[str, Any]
+
+
 class Feedback(BaseModel):  # type: ignore[no-redef]
     """Feedback for a run, to record to LangSmith."""
 

@@ -14,6 +14,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core._api import LangChainBetaWarning
 from langchain_core.messages import AIMessage, AIMessageChunk, AnyMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
 from langfuse import Langfuse  # type: ignore[import-untyped]
 from langfuse.langchain import (
     CallbackHandler,  # type: ignore[import-untyped]
@@ -30,6 +32,8 @@ from schema import (
     ChatMessage,
     Feedback,
     FeedbackResponse,
+    RetrievalDocument,
+    RetrievalRequest,
     ServiceMetadata,
     StreamInput,
     UserInput,
@@ -42,6 +46,18 @@ from service.utils import (
 
 warnings.filterwarnings("ignore", category=LangChainBetaWarning)
 logger = logging.getLogger(__name__)
+
+
+# Cache Chroma instance; create retrievers per-request with desired k
+_cards_chroma = None
+
+
+def get_cards_retriever(k: int = 3):
+    global _cards_chroma
+    if _cards_chroma is None:
+        embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY.get_secret_value())
+        _cards_chroma = Chroma(persist_directory=settings.CARDS_DB_DIR, embedding_function=embeddings)
+    return _cards_chroma.as_retriever(search_kwargs={"k": k})
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -113,6 +129,14 @@ async def info() -> ServiceMetadata:
         default_agent=DEFAULT_AGENT,
         default_model=settings.DEFAULT_MODEL,
     )
+
+
+@router.post("/retrieval/cards", response_model=list[RetrievalDocument])
+async def retrieve_cards(body: RetrievalRequest) -> list[RetrievalDocument]:
+    """Return top-k cards from the Chroma store."""
+    retriever = get_cards_retriever(body.k)
+    docs = retriever.invoke(body.query)
+    return [RetrievalDocument(content=d.page_content, metadata=d.metadata or {}) for d in docs]
 
 
 async def _handle_input(user_input: UserInput, agent: AgentGraph) -> tuple[dict[str, Any], UUID]:

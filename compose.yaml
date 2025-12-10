@@ -74,9 +74,6 @@ services:
       - ANONYMIZED_TELEMETRY=false
       - CHROMA_TELEMETRY=0
       - LANGSMITH_TRACING=false
-    volumes:
-      - ./chroma_db_cards:/app/chroma_db_cards
-      - ./chroma_db:/app/chroma_db
     develop:
       watch:
         - path: src/client/

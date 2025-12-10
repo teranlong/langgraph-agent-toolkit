@@ -1,25 +1,13 @@
-"""Standalone page to query Chroma stores for quick testing."""
+"""Standalone page to query cards retrieval via the backend API."""
 
 import logging
 import os
 
+import httpx
 import streamlit as st
 from dotenv import load_dotenv
-from langchain_chroma import Chroma
-from langchain_core.vectorstores import VectorStoreRetriever
-from langchain_openai import OpenAIEmbeddings
 
 from core.logging_utils import setup_logging
-
-
-
-@st.cache_resource(show_spinner=False)
-def get_retriever(db_path: str, k: int) -> VectorStoreRetriever:
-    """Return a Chroma retriever for the given persisted DB path."""
-    embeddings = OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY", ""))
-    chroma = Chroma(persist_directory=db_path, embedding_function=embeddings)
-    return chroma.as_retriever(search_kwargs={"k": k})
-
 
 def main() -> None:
     setup_logging()
@@ -29,34 +17,30 @@ def main() -> None:
 
     st.set_page_config(page_title="Retrieval Tester", page_icon=":mag:")
     st.title("Retrieval Tester")
-    st.caption("Quickly query a Chroma store without the chat UI.")
-
-    db_options = ["./chroma_db_cards", "./chroma_db_cards2", "Custom path..."]
-    selection = st.selectbox("Chroma DB directory", options=db_options, index=0)
-    if selection == "Custom path...":
-        db_path = st.text_input("Custom DB path", value="./chroma_db_cards")
-    else:
-        db_path = selection
+    st.caption("Queries the backend cards retriever endpoint.")
 
     k = st.slider("Top k", min_value=1, max_value=10, value=3, step=1)
     query_text = st.text_area("Query", value="Tell me about the bobbit worm card.", height=80)
 
-    logger.info(
-        "Retrieval tester page loaded", extra={"db_path": db_path, "k": k, "query_text": query_text}
-    )
+    backend_url = os.getenv("AGENT_URL", "http://localhost:8080").rstrip("/")
+    endpoint = f"{backend_url}/retrieval/cards"
+
+    logger.info("Retrieval tester page loaded", extra={"endpoint": endpoint, "k": k})
     if st.button("Run retrieval", use_container_width=True):
-        logger.debug("Running retrieval", extra={"query": query_text, "db_path": db_path, "k": k})
+        logger.debug("Running retrieval", extra={"query": query_text, "k": k, "endpoint": endpoint})
         try:
-            retriever = get_retriever(db_path, k)
-            results = retriever.invoke(query_text)
+            resp = httpx.post(endpoint, json={"query": query_text, "k": k}, timeout=30)
+            resp.raise_for_status()
+            results = resp.json()
             logger.debug("Retrieval results", extra={"count": len(results) if results else 0})
             if not results:
                 st.info("No results returned.")
             for i, doc in enumerate(results, start=1):
                 st.markdown(f"**Result {i}**")
-                st.write(doc.page_content)
-                if doc.metadata:
-                    st.json(doc.metadata)
+                st.write(doc.get("content", ""))
+                metadata = doc.get("metadata", {})
+                if metadata:
+                    st.json(metadata)
         except Exception as exc:  # pragma: no cover - surfaced to UI
             st.error(f"Retrieval failed: {exc}")
 
