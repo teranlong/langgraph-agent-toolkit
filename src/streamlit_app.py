@@ -6,6 +6,8 @@ from collections.abc import AsyncGenerator
 
 import streamlit as st
 from dotenv import load_dotenv
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
 from pydantic import ValidationError
 
 from client import AgentClient, AgentClientError
@@ -19,6 +21,14 @@ async def safe_anext(agen: AsyncGenerator, default=None):
         return await anext(agen)
     except StopAsyncIteration:
         return default
+
+
+@st.cache_resource(show_spinner=False)
+def get_retriever(db_path: str, k: int = 3):
+    """Load a Chroma retriever for the given persisted DB path."""
+    embeddings = OpenAIEmbeddings(api_key=os.environ.get("OPENAI_API_KEY", ""))
+    chroma = Chroma(persist_directory=db_path, embedding_function=embeddings)
+    return chroma.as_retriever(search_kwargs={"k": k})
 
 
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
@@ -163,6 +173,36 @@ async def main() -> None:
             st.write(
                 "Prompts, responses and feedback in this app are anonymously recorded and saved to LangSmith for product evaluation and improvement purposes only."
             )
+
+        show_retriever = st.toggle(":material/search: Retrieval tester", value=False)
+        if show_retriever:
+            st.caption("Quickly query a Chroma store without leaving the app.")
+            db_options = ["./chroma_db_cards", "./chroma_db_cards2", "Custom path..."]
+            selection = st.selectbox("Chroma DB directory", options=db_options, index=0)
+            if selection == "Custom path...":
+                db_path = st.text_input("Custom DB path", value="./chroma_db_cards")
+            else:
+                db_path = selection
+
+            k = st.slider("Top k", min_value=1, max_value=10, value=3, step=1)
+            query_text = st.text_area(
+                "Query",
+                value="Tell me about the bobbit worm card.",
+                height=80,
+            )
+            if st.button("Run retrieval", use_container_width=True):
+                try:
+                    retriever = get_retriever(db_path, k)
+                    results = retriever.invoke(query_text)
+                    if not results:
+                        st.info("No results returned.")
+                    for i, doc in enumerate(results, start=1):
+                        st.markdown(f"**Result {i}**")
+                        st.write(doc.page_content)
+                        if doc.metadata:
+                            st.json(doc.metadata)
+                except Exception as e:  # pragma: no cover - surfaced to UI
+                    st.error(f"Retrieval failed: {e}")
 
         @st.dialog("Share/resume chat")
         def share_chat_dialog() -> None:

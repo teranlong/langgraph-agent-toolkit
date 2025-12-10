@@ -118,7 +118,7 @@ if __name__ == "__main__":
     tsv_path = "./data/cards.tsv"
 
     # Create the Chroma database
-    chroma = create_chroma_db_from_cards(tsv_path=tsv_path, db_name="./chroma_db_cards_run")
+    chroma = create_chroma_db_from_cards(tsv_path=tsv_path, db_name="./chroma_db_cards")
 
     # Create retriever from the Chroma database
     retriever = chroma.as_retriever(search_kwargs={"k": 3})

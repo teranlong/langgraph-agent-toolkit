@@ -34,6 +34,8 @@ services:
     # Volume mount of development-only credentials since compose watch doesn't sync ignored files and doesn't do initial sync when the service starts
     volumes:
       - ./privatecredentials:/privatecredentials
+      - ./chroma_db_cards:/app/chroma_db_cards
+      - ./chroma_db:/app/chroma_db
     develop:
       watch:
         - path: src/agents/
@@ -59,6 +61,8 @@ services:
       - "8501:8501"
     depends_on:
       - agent_service
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
       interval: 5s
@@ -66,6 +70,13 @@ services:
       retries: 5
     environment:
       - AGENT_URL=http://agent_service:8080
+      - LOG_LEVEL=INFO
+      - ANONYMIZED_TELEMETRY=false
+      - CHROMA_TELEMETRY=0
+      - LANGSMITH_TRACING=false
+    volumes:
+      - ./chroma_db_cards:/app/chroma_db_cards
+      - ./chroma_db:/app/chroma_db
     develop:
       watch:
         - path: src/client/
@@ -74,9 +85,15 @@ services:
         - path: src/schema/
           action: sync+restart
           target: /app/schema/
+        - path: src/core/
+          action: sync+restart
+          target: /app/core/
         - path: src/streamlit_app.py
           action: sync+restart
           target: /app/streamlit_app.py
+        - path: src/pages/
+          action: sync+restart
+          target: /app/pages/
 
 volumes:
   postgres_data:

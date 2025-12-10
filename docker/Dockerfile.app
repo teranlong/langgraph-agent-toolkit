@@ -11,11 +11,13 @@ RUN pip install --no-cache-dir uv
 
 # Install only the dependencies needed for the client application
 # --frozen: Use exact versions from the lock file
-# --only-group client: Only install dependencies marked as part of the "client" group in pyproject.toml
-RUN uv sync --frozen --only-group client
+# Install full dependency set so shared modules (core, etc.) are available
+RUN uv sync --frozen
 
 COPY src/client/ ./client/
 COPY src/schema/ ./schema/
+COPY src/core/ ./core/
 COPY src/streamlit_app.py .
+COPY src/pages/ ./pages/
 
 CMD ["streamlit", "run", "streamlit_app.py"]

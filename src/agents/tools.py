@@ -84,6 +84,10 @@ def cards_search_func(query: str) -> str:
     # Search the database for relevant documents
     documents = retriever.invoke(query)
 
+    # Display results
+    for i, doc in enumerate(documents, start=1):
+        print(f"\n🔹 Result {i}:\n{doc.page_content}\nTags: {doc.metadata.get('source', [])}")
+
     # Format the documents into a string
     context_str = format_contexts(documents)
 

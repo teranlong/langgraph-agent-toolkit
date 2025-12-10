@@ -1,23 +1,16 @@
 import asyncio
-import logging
 import sys
 
 import uvicorn
 from dotenv import load_dotenv
 
 from core import settings
+from core.logging_utils import setup_logging
 
 load_dotenv()
 
 if __name__ == "__main__":
-    root_logger = logging.getLogger()
-    if root_logger.handlers:
-        print(
-            f"Warning: Root logger already has {len(root_logger.handlers)} handler(s) configured. "
-            f"basicConfig() will be ignored. Current level: {logging.getLevelName(root_logger.level)}"
-        )
-
-    logging.basicConfig(level=settings.LOG_LEVEL.to_logging_level())
+    setup_logging()
     # Set Compatible event loop policy on Windows Systems.
     # On Windows systems, the default ProactorEventLoop can cause issues with
     # certain async database drivers like psycopg (PostgreSQL driver).
