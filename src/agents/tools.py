@@ -6,6 +6,8 @@ from langchain_chroma import Chroma
 from langchain_core.tools import BaseTool, tool
 from langchain_openai import OpenAIEmbeddings
 
+from core.settings import settings
+
 
 def calculator_func(expression: str) -> str:
     """Calculates a math expression using numexpr.
@@ -77,16 +79,27 @@ def database_search_func(query: str) -> str:
 
 
 def cards_search_func(query: str) -> str:
-    """Searches chroma_db for information in the cards database."""
-    # Get the chroma retriever
-    retriever = load_chroma_db("./chroma_db_cards")
+    """Searches the Chroma server for information in the cards database."""
 
-    # Search the database for relevant documents
+    # load chroma connection details from settings to handle docker host automatically
+    conn = settings.chroma_connection()
+
+    embeddings = OpenAIEmbeddings()
+    vector_store = Chroma(
+        collection_name="cards-v1__openai__text-embedding-3-large__v1",
+        embedding_function=embeddings,
+        host=conn["host"],
+        port=conn["port"],
+    )
+    retriever = vector_store.as_retriever(search_kwargs={"k": 5})
+
     documents = retriever.invoke(query)
 
     # Display results
     for i, doc in enumerate(documents, start=1):
-        print(f"\n🔹 Result {i}:\n{doc.page_content}\nTags: {doc.metadata.get('source', [])}")
+        print(
+            f"\n🔹 Result {i}:\n{doc.page_content}\nTags: {doc.metadata.get('source', [])}"
+        )
 
     # Format the documents into a string
     context_str = format_contexts(documents)

@@ -1,6 +1,7 @@
 from enum import StrEnum
 from json import loads
 from typing import Annotated, Any
+import os
 
 from dotenv import find_dotenv
 from pydantic import (
@@ -63,6 +64,15 @@ def check_str_is_http(x: str) -> str:
     return str(http_url_adapter.validate_python(x))
 
 
+def running_in_docker() -> bool:
+    """Best-effort container detection.
+
+    Checks for a Docker control file and an opt-in environment flag.
+    """
+
+    return os.path.exists("/.dockerenv") or os.getenv("IN_DOCKER") == "true"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=find_dotenv(),
@@ -84,6 +94,12 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: SecretStr | None = None
     CHROMA_OPENAI_API_KEY: SecretStr | None = None
+    CHROMA_HOST: str = Field(
+        default_factory=lambda: (
+            "host.docker.internal" if running_in_docker() else "localhost"
+        )
+    )
+    CHROMA_PORT: int = 8000
     DEEPSEEK_API_KEY: SecretStr | None = None
     ANTHROPIC_API_KEY: SecretStr | None = None
     GOOGLE_API_KEY: SecretStr | None = None
@@ -256,6 +272,14 @@ class Settings(BaseSettings):
                         )
                 case _:
                     raise ValueError(f"Unknown provider: {provider}")
+
+    def chroma_connection(self) -> dict[str, Any]:
+        """Return connection settings for Chroma HTTP clients."""
+
+        return {
+            "host": self.CHROMA_HOST,
+            "port": self.CHROMA_PORT,
+        }
 
     @computed_field  # type: ignore[prop-decorator]
     @property
