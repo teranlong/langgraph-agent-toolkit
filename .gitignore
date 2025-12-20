@@ -1,3 +1,6 @@
+# ignore all notebook files because we generate them based on .py files
+.ipynb
+
 # Streamlit and sqlite
 .streamlit/secrets.toml
 checkpoints.db
