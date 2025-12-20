@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     AUTH_SECRET: SecretStr | None = None
 
     OPENAI_API_KEY: SecretStr | None = None
+    CHROMA_OPENAI_API_KEY: SecretStr | None = None
     DEEPSEEK_API_KEY: SecretStr | None = None
     ANTHROPIC_API_KEY: SecretStr | None = None
     GOOGLE_API_KEY: SecretStr | None = None
@@ -117,7 +118,9 @@ class Settings(BaseSettings):
     LANGCHAIN_API_KEY: SecretStr | None = None
 
     LANGFUSE_TRACING: bool = False
-    LANGFUSE_HOST: Annotated[str, BeforeValidator(check_str_is_http)] = "https://cloud.langfuse.com"
+    LANGFUSE_HOST: Annotated[str, BeforeValidator(check_str_is_http)] = (
+        "https://cloud.langfuse.com"
+    )
     LANGFUSE_PUBLIC_KEY: SecretStr | None = None
     LANGFUSE_SECRET_KEY: SecretStr | None = None
 
@@ -156,7 +159,8 @@ class Settings(BaseSettings):
     def model_post_init(self, __context: Any) -> None:
         api_keys = {
             Provider.OPENAI: self.OPENAI_API_KEY,
-            Provider.OPENAI_COMPATIBLE: self.COMPATIBLE_BASE_URL and self.COMPATIBLE_MODEL,
+            Provider.OPENAI_COMPATIBLE: self.COMPATIBLE_BASE_URL
+            and self.COMPATIBLE_MODEL,
             Provider.DEEPSEEK: self.DEEPSEEK_API_KEY,
             Provider.ANTHROPIC: self.ANTHROPIC_API_KEY,
             Provider.GOOGLE: self.GOOGLE_API_KEY,
@@ -237,13 +241,19 @@ class Settings(BaseSettings):
                                 self.AZURE_OPENAI_DEPLOYMENT_MAP
                             )
                         except Exception as e:
-                            raise ValueError(f"Invalid AZURE_OPENAI_DEPLOYMENT_MAP JSON: {e}")
+                            raise ValueError(
+                                f"Invalid AZURE_OPENAI_DEPLOYMENT_MAP JSON: {e}"
+                            )
 
                     # Validate required deployments exist
                     required_models = {"gpt-4o", "gpt-4o-mini"}
-                    missing_models = required_models - set(self.AZURE_OPENAI_DEPLOYMENT_MAP.keys())
+                    missing_models = required_models - set(
+                        self.AZURE_OPENAI_DEPLOYMENT_MAP.keys()
+                    )
                     if missing_models:
-                        raise ValueError(f"Missing required Azure deployments: {missing_models}")
+                        raise ValueError(
+                            f"Missing required Azure deployments: {missing_models}"
+                        )
                 case _:
                     raise ValueError(f"Unknown provider: {provider}")
 
