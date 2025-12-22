@@ -84,7 +84,14 @@ def cards_search_func(query: str) -> str:
     # load chroma connection details from settings to handle docker host automatically
     conn = settings.chroma_connection()
 
-    embeddings = OpenAIEmbeddings()
+    # This collection was built with text-embedding-3-large (3072 dims); using a
+    # smaller embedding model will trigger a dimension mismatch error.
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-large",
+        api_key=settings.CHROMA_OPENAI_API_KEY.get_secret_value()
+        if settings.CHROMA_OPENAI_API_KEY
+        else None,
+    )
     vector_store = Chroma(
         collection_name="cards-v1__openai__text-embedding-3-large__v1",
         embedding_function=embeddings,
@@ -95,10 +102,10 @@ def cards_search_func(query: str) -> str:
 
     documents = retriever.invoke(query)
 
-    # Display results
+    # Display results (keep ASCII to avoid encoding errors on Windows shells)
     for i, doc in enumerate(documents, start=1):
         print(
-            f"\n🔹 Result {i}:\n{doc.page_content}\nTags: {doc.metadata.get('source', [])}"
+            f"\n* Result {i}:\n{doc.page_content}\nTags: {doc.metadata.get('source', [])}"
         )
 
     # Format the documents into a string

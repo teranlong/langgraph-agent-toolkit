@@ -78,7 +78,9 @@ async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
     if safety_output.safety_assessment == SafetyAssessment.UNSAFE:
         return {"messages": [format_safety_message(safety_output)], "safety": safety_output}
 
-    if state["remaining_steps"] < 2 and response.tool_calls:
+    remaining_steps = state.get("remaining_steps")
+    # remaining_steps may be absent when running without managed recursion limits
+    if remaining_steps is not None and remaining_steps < 2 and response.tool_calls:
         return {
             "messages": [
                 AIMessage(

@@ -57,9 +57,7 @@ def wrap_model(model: BaseChatModel) -> RunnableSerializable[AgentState, AIMessa
 
 
 def format_safety_message(safety: LlamaGuardOutput) -> AIMessage:
-    content = (
-        f"This conversation was flagged for unsafe content: {', '.join(safety.unsafe_categories)}"
-    )
+    content = f"This conversation was flagged for unsafe content: {', '.join(safety.unsafe_categories)}"
     return AIMessage(content=content)
 
 
@@ -77,7 +75,9 @@ async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
             "safety": safety_output,
         }
 
-    if state["remaining_steps"] < 2 and response.tool_calls:
+    remaining_steps = state.get("remaining_steps")
+    # remaining_steps may be absent when running without managed recursion limits
+    if remaining_steps is not None and remaining_steps < 2 and response.tool_calls:
         return {
             "messages": [
                 AIMessage(
@@ -141,6 +141,8 @@ def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
     return "done"
 
 
-agent.add_conditional_edges("model", pending_tool_calls, {"tools": "tools", "done": END})
+agent.add_conditional_edges(
+    "model", pending_tool_calls, {"tools": "tools", "done": END}
+)
 
 rag_assistant_cards = agent.compile()
