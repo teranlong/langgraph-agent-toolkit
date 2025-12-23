@@ -78,8 +78,7 @@ def database_search_func(query: str) -> str:
     return context_str
 
 
-def cards_search_func(query: str) -> str:
-    """Searches the Chroma server for information in the cards database."""
+def load_default_cards_chroma_db():
 
     # load chroma connection details from settings to handle docker host automatically
     conn = settings.chroma_connection()
@@ -88,9 +87,11 @@ def cards_search_func(query: str) -> str:
     # smaller embedding model will trigger a dimension mismatch error.
     embeddings = OpenAIEmbeddings(
         model="text-embedding-3-large",
-        api_key=settings.CHROMA_OPENAI_API_KEY.get_secret_value()
-        if settings.CHROMA_OPENAI_API_KEY
-        else None,
+        api_key=(
+            settings.CHROMA_OPENAI_API_KEY.get_secret_value()
+            if settings.CHROMA_OPENAI_API_KEY
+            else None
+        ),
     )
     vector_store = Chroma(
         collection_name="cards-v1__openai__text-embedding-3-large__v1",
@@ -98,6 +99,14 @@ def cards_search_func(query: str) -> str:
         host=conn["host"],
         port=conn["port"],
     )
+    return vector_store
+
+
+def cards_search_func(query: str) -> str:
+    """Searches the Chroma server for information in the cards database."""
+
+    vector_store = load_default_cards_chroma_db()
+
     retriever = vector_store.as_retriever(search_kwargs={"k": 5})
 
     documents = retriever.invoke(query)
@@ -113,9 +122,40 @@ def cards_search_func(query: str) -> str:
 
     return context_str
 
+
+def cards_search_with_power_filter_func(query: str, filter_value: int) -> str:
+    """Searches the Chroma server for information in the cards database."""
+
+    filters = {"power": {"$gte": filter_value}}
+
+    # FILTER = {"rarity": "Legendary"}
+    # FILTER = {"power": 49}
+
+    vector_store = load_default_cards_chroma_db()
+
+    retriever = vector_store.as_retriever(search_kwargs={"k": 5, "filter": filters})
+
+    documents = retriever.invoke(query)
+
+    # Display results (keep ASCII to avoid encoding errors on Windows shells)
+    for i, doc in enumerate(documents, start=1):
+        print(
+            f"\n* Result {i}:\n{doc.page_content}\nTags: {doc.metadata.get('source', [])}"
+        )
+
+    # Format the documents into a string
+    context_str = format_contexts(documents)
+
+    return context_str
+
+
 database_search: BaseTool = tool(database_search_func)
-database_search.name = "Database_Search"  # Update name with the purpose of your database
+database_search.name = "Database_Search"
 
 
 cards_search: BaseTool = tool(cards_search_func)
-cards_search.name = "Cards_Search"  # Update name with the purpose of your database
+cards_search.name = "Cards_Search"
+
+
+cards_search_with_power_filter: BaseTool = tool(cards_search_with_power_filter_func)
+cards_search_with_power_filter.name = "Cards_Search_with_power_filter"
