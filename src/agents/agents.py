@@ -10,7 +10,9 @@ from agents.github_mcp_agent.github_mcp_agent import github_mcp_agent
 from agents.interrupt_agent import interrupt_agent
 from agents.knowledge_base_agent import kb_agent
 from agents.langgraph_supervisor_agent import langgraph_supervisor_agent
-from agents.langgraph_supervisor_hierarchy_agent import langgraph_supervisor_hierarchy_agent
+from agents.langgraph_supervisor_hierarchy_agent import (
+    langgraph_supervisor_hierarchy_agent,
+)
 from agents.lazy_agent import LazyLoadingAgent
 from agents.rag_assistant import rag_assistant
 from agents.rag_assistant_cards import rag_assistant_cards
@@ -23,7 +25,9 @@ DEFAULT_AGENT = "research-assistant"
 # - @entrypoint functions return Pregel
 # - StateGraph().compile() returns CompiledStateGraph
 AgentGraph = CompiledStateGraph | Pregel  # What get_agent() returns (always loaded)
-AgentGraphLike = CompiledStateGraph | Pregel | LazyLoadingAgent  # What can be stored in registry
+AgentGraphLike = (
+    CompiledStateGraph | Pregel | LazyLoadingAgent
+)  # What can be stored in registry
 
 
 @dataclass
@@ -33,6 +37,10 @@ class Agent:
 
 
 agents: dict[str, Agent] = {
+    "rag-assistant-cards": Agent(
+        description="A RAG assistant with access to information in cards.",
+        graph_like=rag_assistant_cards,
+    ),
     "chatbot1": Agent(description="A simple chatbot.", graph_like=chatbot),
     "research-assistant": Agent(
         description="A research assistant with web search and calculator.",
@@ -42,14 +50,13 @@ agents: dict[str, Agent] = {
         description="A RAG assistant with access to information in a database.",
         graph_like=rag_assistant,
     ),
-    "rag-assistant-cards": Agent(
-        description="A RAG assistant with access to information in cards.",
-        graph_like=rag_assistant_cards,
-    ),
     "command-agent": Agent(description="A command agent.", graph_like=command_agent),
-    "bg-task-agent": Agent(description="A background task agent.", graph_like=bg_task_agent),
+    "bg-task-agent": Agent(
+        description="A background task agent.", graph_like=bg_task_agent
+    ),
     "langgraph-supervisor-agent": Agent(
-        description="A langgraph supervisor agent", graph_like=langgraph_supervisor_agent
+        description="A langgraph supervisor agent",
+        graph_like=langgraph_supervisor_agent,
     ),
     "langgraph-supervisor-hierarchy-agent": Agent(
         description="A langgraph supervisor agent with a nested hierarchy of agents",
@@ -92,5 +99,6 @@ def get_agent(agent_id: str) -> AgentGraph:
 
 def get_all_agent_info() -> list[AgentInfo]:
     return [
-        AgentInfo(key=agent_id, description=agent.description) for agent_id, agent in agents.items()
+        AgentInfo(key=agent_id, description=agent.description)
+        for agent_id, agent in agents.items()
     ]
