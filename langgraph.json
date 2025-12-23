@@ -2,7 +2,7 @@
     "python_version": "3.12",
     "dependencies": ["./src"],
     "graphs": {
-        "research_assistant": "./src/agents/research_assistant.py:research_assistant"
+        "rag_assistant_cards": "./src/agents/rag_assistant_cards.py:rag_assistant_cards"
     },
     "env": "./.env"
 }
