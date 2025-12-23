@@ -135,7 +135,8 @@ async def main() -> None:
             model_idx = agent_client.info.models.index(agent_client.info.default_model)
             model = st.selectbox("LLM to use", options=agent_client.info.models, index=model_idx)
             agent_list = [a.key for a in agent_client.info.agents]
-            agent_idx = agent_list.index(agent_client.info.default_agent)
+            default_agent = agent_client.info.default_agent
+            agent_idx = agent_list.index(default_agent) if default_agent in agent_list else 0
             agent_client.agent = st.selectbox(
                 "Agent to use",
                 options=agent_list,

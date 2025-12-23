@@ -19,7 +19,7 @@ from agents.rag_assistant_cards import rag_assistant_cards
 from agents.research_assistant import research_assistant
 from schema import AgentInfo
 
-DEFAULT_AGENT = "research-assistant"
+DEFAULT_AGENT = "rag-assistant-cards"
 
 # Type alias to handle LangGraph's different agent patterns
 # - @entrypoint functions return Pregel
