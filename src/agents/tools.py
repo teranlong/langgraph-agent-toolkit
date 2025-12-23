@@ -1,5 +1,6 @@
 import math
 import re
+from typing import Any, Dict, Union
 
 import numexpr
 from langchain_chroma import Chroma
@@ -7,6 +8,7 @@ from langchain_core.tools import BaseTool, tool
 from langchain_openai import OpenAIEmbeddings
 
 from core.settings import settings
+from .card_filters import CardFilter
 
 
 def calculator_func(expression: str) -> str:
@@ -149,6 +151,44 @@ def cards_search_with_power_filter_func(query: str, filter_value: int) -> str:
     return context_str
 
 
+def cards_search_with_filter_func(
+    query: str, filters: Union[CardFilter, Dict[str, Any]], k: int = 5
+) -> str:
+    """Search the cards database with validated metadata filters.
+
+    LLM usage:
+    - Always pass a `filters` dict matching the CardFilter schema:
+      { "rarity": <str or {"$in": [...]}>,
+        "collection": <str or {"$in": [...]}>,
+        "power": <number or {"$gte"/"$lte"/"$gt"/"$lt"/"$eq"/"$in": number|[numbers]}>,
+        "energy": <number or {"$gte"/"$lte"/"$gt"/"$lt"/"$eq"/"$in": number|[numbers]}> }
+    - Use numerics for power/energy (no strings/booleans); comparison ops belong inside the nested dict.
+    - Set `k` if you want a different top-k (default 5).
+    Examples:
+    - filters={"rarity": {"$in": ["Legendary", "Epic"]}, "power": {"$gte": 50}}
+    - filters={"collection": "Deep Sea", "power": {"$gt": 5, "$lt": 10}, "rarity": "Rare"}
+    - filters={"power": {"$gt": 50}, "energy": {"$lt": 5}}
+    """
+
+    card_filter = filters if isinstance(filters, CardFilter) else CardFilter(**filters)
+    validated_filter = card_filter.to_chroma_filter()
+
+    vector_store = load_default_cards_chroma_db()
+
+    retriever = vector_store.as_retriever(
+        search_kwargs={"k": k, "filter": validated_filter}
+    )
+
+    documents = retriever.invoke(query)
+
+    for i, doc in enumerate(documents, start=1):
+        print(
+            f"\n* Result {i}:\n{doc.page_content}\nTags: {doc.metadata.get('source', [])}"
+        )
+
+    return format_contexts(documents)
+
+
 database_search: BaseTool = tool(database_search_func)
 database_search.name = "Database_Search"
 
@@ -159,3 +199,7 @@ cards_search.name = "Cards_Search"
 
 cards_search_with_power_filter: BaseTool = tool(cards_search_with_power_filter_func)
 cards_search_with_power_filter.name = "Cards_Search_with_power_filter"
+
+
+cards_search_with_filter: BaseTool = tool(cards_search_with_filter_func)
+cards_search_with_filter.name = "Cards_Search_with_filter"

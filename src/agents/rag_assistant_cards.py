@@ -13,7 +13,7 @@ from langgraph.managed import RemainingSteps
 from langgraph.prebuilt import ToolNode
 
 from agents.llama_guard import LlamaGuard, LlamaGuardOutput, SafetyAssessment
-from agents.tools import cards_search, cards_search_with_power_filter
+from agents.tools import cards_search, cards_search_with_filter
 from core import get_model, settings
 
 
@@ -27,7 +27,7 @@ class AgentState(MessagesState, total=False):
     remaining_steps: RemainingSteps
 
 
-tools = [cards_search, cards_search_with_power_filter]
+tools = [cards_search, cards_search_with_filter]
 
 
 current_date = datetime.now().strftime("%B %d, %Y")
@@ -45,8 +45,21 @@ instructions = f"""
     or two citations per response unless more are needed. ONLY USE LINKS RETURNED BY THE TOOLS.
     - Only use information from the database. Do not use information from outside sources.
 
-    When the user asks about a card you should use the Cards_Search tool to find the card. If the user asks about a card with a 
-    specific power you should use the Cards_Search_with_power_filter tool. 
+    When the user asks about a card you should use the Cards_Search tool to find the card. If the user gives constraints or filters, 
+    identify those and use the Cards_Search_With_Filter tool.
+
+    
+    LLM usage:
+    - Always pass a `filters` dict matching the CardFilter schema:
+      {{ "rarity": <str or {{"$in": [...]}}>,
+        "collection": <str or {{"$in": [...]}}>,
+        "power": <number or {{"$gte"/"$lte"/"$gt"/"$lt"/"$eq"/"$in": number|[numbers]}}>,
+        "energy": <number or {{"$gte"/"$lte"/"$gt"/"$lt"/"$eq"/"$in": number|[numbers]}}> }}
+    - Every call must include a `query` string plus `filters`. Operators must be prefixed with `$` (e.g., `$gt`, not `gt`).
+    - Use numerics for power/energy (no strings/booleans); comparison ops belong inside the nested dict.
+    - Set `k` if you want a different top-k (default 5).
+    Examples:
+    - filters={{"rarity": {{"$in": ["Legendary", "Epic"]}}, "collection": "Deep Sea", "power": {{"$gt": 5, "$lt": 50}}, "energy": {{"$lt": 8}}}}
 
     """
 
