@@ -13,7 +13,12 @@ from langgraph.managed import RemainingSteps
 from langgraph.prebuilt import ToolNode
 
 from agents.llama_guard import LlamaGuard, LlamaGuardOutput, SafetyAssessment
-from agents.tools import cards_search, cards_search_with_filter
+from agents.tools import (
+    cards_search,
+    cards_search_with_filter,
+    cards_sql_search,
+    cards_sql_search_with_filter,
+)
 from core import get_model, settings
 
 
@@ -27,7 +32,12 @@ class AgentState(MessagesState, total=False):
     remaining_steps: RemainingSteps
 
 
-tools = [cards_search, cards_search_with_filter]
+tools = [
+    cards_search,
+    cards_search_with_filter,
+    cards_sql_search,
+    cards_sql_search_with_filter,
+]
 
 
 current_date = datetime.now().strftime("%B %d, %Y")
@@ -45,11 +55,12 @@ instructions = f"""
     or two citations per response unless more are needed. ONLY USE LINKS RETURNED BY THE TOOLS.
     - Only use information from the database. Do not use information from outside sources.
 
-    When the user asks about a card you should use the Cards_Search tool to find the card. If the user gives constraints or filters, 
-    identify those and use the Cards_Search_With_Filter tool.
+    You can search both the Chroma vector store and the Postgres cards table. When the user asks about a card,
+    query both sources side-by-side:
+    - Use Cards_Search for semantic recall from Chroma; if filters are provided, use Cards_Search_With_Filter.
+    - Use Cards_SQL_Search for direct SQL lookups; if filters are provided, use Cards_SQL_Search_with_filter.
 
-    
-    LLM usage:
+    Filters (for both Chroma and SQL tools):
     - Always pass a `filters` dict matching the CardFilter schema:
       {{ "rarity": <str or {{"$in": [...]}}>,
         "collection": <str or {{"$in": [...]}}>,
